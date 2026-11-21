@@ -1,9 +1,9 @@
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
-#include "soil_moisture.h"
+#include "audio_player.h"
 #include "sd_card.h"
+#include "soil_monitor.h"
+#include "soil_moisture.h"
 
 static const char* TAG = "main";
 
@@ -15,26 +15,25 @@ static void read_foo_txt(void)
     if (err == ESP_OK || err == ESP_ERR_INVALID_SIZE) {
         ESP_LOGI(TAG, "foo.txt (%u bytes):\n%s", (unsigned)len, buf);
     } else {
-        ESP_LOGE(TAG, "Reading foo.txt failed: %s", esp_err_to_name(err));
+        ESP_LOGW(TAG, "Reading foo.txt failed: %s", esp_err_to_name(err));
     }
 }
 
+/*
+ * Task overview:
+ *   soil_monitor task: measures the soil moisture periodically, requests a scream when dry
+ *   audio task:        plays a random WAV from the SD card (or a built-in siren) on request
+ * app_main only initialises the hardware and starts the tasks, then returns.
+ */
 void app_main(void)
 {
     if (sd_card_mount() == ESP_OK) {
         read_foo_txt();
+    } else {
+        ESP_LOGW(TAG, "No SD card, the plant can only use the built-in siren");
     }
 
+    ESP_ERROR_CHECK(audio_player_init());
     ESP_ERROR_CHECK(soil_moisture_init());
-
-    while (true) {
-        soil_moisture_reading_t r;
-        esp_err_t err = soil_moisture_read(&r);
-        if (err == ESP_OK) {
-            ESP_LOGI(TAG, "Soil moisture: %3d %%  (%4d mV, raw %4d)", r.percent, r.voltage_mv, r.raw);
-        } else {
-            ESP_LOGE(TAG, "Reading the sensor failed: %s", esp_err_to_name(err));
-        }
-        vTaskDelay(pdMS_TO_TICKS(CONFIG_SOIL_MOISTURE_INTERVAL_MS));
-    }
+    ESP_ERROR_CHECK(soil_monitor_start());
 }

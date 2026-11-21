@@ -27,4 +27,27 @@ menu "Screaming Plant: Soil moisture sensor"
         range 100 3600000
         default 2000
 
+    config SOIL_MOISTURE_DRY_THRESHOLD_PERCENT
+        int "Scream when moisture is at or below (%)"
+        range 0 100
+        default 30
+
+    config SCREAM_COOLDOWN_S
+        int "Minimum time between two screams (s)"
+        range 1 86400
+        default 60
+
+endmenu
+
+menu "Screaming Plant: Audio"
+
+    config AUDIO_VOLUME_PERCENT
+        int "Volume (%)"
+        range 1 400
+        default 100
+        help
+            100 plays the files unchanged (best quality). Set the loudness on the speaker box.
+            Lower values reduce the level if the AUX input of the box distorts; values above
+            100 amplify and clip the peaks.
+
 endmenu
