@@ -1,0 +1,30 @@
+menu "Screaming Plant: Soil moisture sensor"
+
+    config SOIL_MOISTURE_DRY_MV
+        int "Sensor voltage when dry (mV)"
+        range 0 3300
+        default 2400
+        help
+            Sensor output voltage with the probe in dry air. Read the value from
+            the log output and adjust it here (0 % moisture).
+
+    config SOIL_MOISTURE_WET_MV
+        int "Sensor voltage when wet (mV)"
+        range 0 3300
+        default 1100
+        help
+            Sensor output voltage with the probe in a glass of water (up to the
+            marking line). Read the value from the log output and adjust it here
+            (100 % moisture).
+
+    config SOIL_MOISTURE_SAMPLES
+        int "Samples averaged per reading"
+        range 1 256
+        default 16
+
+    config SOIL_MOISTURE_INTERVAL_MS
+        int "Measurement interval (ms)"
+        range 100 3600000
+        default 2000
+
+endmenu
