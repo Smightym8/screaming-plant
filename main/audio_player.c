@@ -53,6 +53,8 @@ static uint32_t s_rate;
 static int16_t s_pcm[AUDIO_CHUNK_FRAMES];
 static uint8_t s_raw[AUDIO_CHUNK_FRAMES * 4];   /* up to 16 bit stereo */
 static int16_t s_sine[256];
+static int s_count;   /* sounds in the current round */
+static int s_pos;     /* sounds of the round already started */
 
 static esp_err_t set_sample_rate(uint32_t rate)
 {
@@ -105,8 +107,11 @@ static esp_err_t play_wav(const char* path)
 
     const size_t frame = wav_frame_size(&info);
     const uint32_t total = info.data_size / frame;
-    ESP_LOGI(TAG, "Playing %s (%u Hz, %u bit, %s, %u ms)", path, (unsigned)info.sample_rate, info.bits,
-             info.channels == 1 ? "mono" : "stereo", (unsigned)((uint64_t)total * 1000 / info.sample_rate));
+    const char* name = strrchr(path, '/');
+    name = name ? name + 1 : path;
+    ESP_LOGI(TAG, ">>> Now playing: %s  (sound %d/%d of this round, %u.%u s)", name, s_pos, s_count,
+             (unsigned)(total / info.sample_rate), (unsigned)(total % info.sample_rate * 10 / info.sample_rate));
+    ESP_LOGD(TAG, "%u Hz, %u bit, %s", (unsigned)info.sample_rate, info.bits, info.channels == 1 ? "mono" : "stereo");
 
     esp_err_t err = set_sample_rate(info.sample_rate);
     const uint32_t fade = info.sample_rate * AUDIO_FADE_MS / 1000;
@@ -128,7 +133,7 @@ static esp_err_t play_wav(const char* path)
 
 static esp_err_t play_siren(void)
 {
-    ESP_LOGI(TAG, "Playing built-in siren");
+    ESP_LOGI(TAG, ">>> Now playing: built-in siren (no WAV files on the SD card)");
     ESP_RETURN_ON_ERROR(set_sample_rate(AUDIO_DEFAULT_RATE), TAG, "rate");
     const uint32_t total = AUDIO_DEFAULT_RATE * SIREN_MS / 1000;
     const uint32_t fade = AUDIO_DEFAULT_RATE * AUDIO_FADE_MS / 1000;
@@ -195,8 +200,6 @@ static uint32_t rng_next(void)
  */
 static char** s_names;
 static int* s_order;
-static int s_count;
-static int s_pos;
 static char s_last[256];
 
 static void free_playlist(void)
@@ -253,6 +256,7 @@ static void new_round(void)
     for (int i = 0; i < s_count; i++) {   /* log the order, a few names per line */
         int w = snprintf(line + len, sizeof(line) - len, "%s%s", len ? ", " : "", s_names[s_order[i]]);
         if (w < 0 || (size_t)w >= sizeof(line) - len) {
+            line[len] = '\0';   /* drop the name that did not fit, it starts the next line */
             ESP_LOGI(TAG, "  %s", line);
             len = 0;
             i--;
@@ -275,7 +279,6 @@ static bool next_wav(char* path, size_t path_size)
         return false;
     }
     const char* name = s_names[s_order[s_pos]];
-    ESP_LOGI(TAG, "Sound %d/%d of this round", s_pos + 1, s_count);
     s_pos++;
     snprintf(path, path_size, SD_CARD_MOUNT_POINT "/%s", name);
     strlcpy(s_last, name, sizeof(s_last));

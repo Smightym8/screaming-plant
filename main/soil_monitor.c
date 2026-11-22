@@ -33,10 +33,14 @@ static void soil_monitor_task(void* arg)
 
             TickType_t now = xTaskGetTickCount();
             if (dry && (!screamed || now - last_scream >= cooldown)) {
+                /* log before queueing: the audio task has a higher priority and logs the file name at once */
+                ESP_LOGW(TAG, "Too dry! Moisture %d %% (dry at <= %d %%), screaming:",
+                         r.percent, CONFIG_SOIL_MOISTURE_DRY_THRESHOLD_PERCENT);
                 if (audio_player_play_next() == ESP_OK) {
-                    ESP_LOGW(TAG, "Soil is dry, screaming!");
                     last_scream = now;
                     screamed = true;
+                } else {
+                    ESP_LOGW(TAG, "Audio player busy, trying again with the next reading");
                 }
             }
         }
